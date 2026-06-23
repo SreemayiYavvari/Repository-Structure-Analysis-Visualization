@@ -1,0 +1,36 @@
+"""
+Caching Service.
+
+Stores and retrieves Gemini-generated file summaries keyed by the
+SHA256 hash of the file's content. If a file's content hasn't changed
+(same hash), the cached summary is returned and Gemini is not called.
+"""
+from typing import Optional
+
+from app.database.db import get_connection
+
+
+def get_cached_summary(file_hash: str) -> Optional[str]:
+    """Return the cached summary for a given file hash, or None if absent."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT summary FROM file_summary_cache WHERE file_hash = ?",
+            (file_hash,),
+        ).fetchone()
+        return row["summary"] if row else None
+
+
+def save_summary(file_hash: str, filepath: str, summary: str) -> None:
+    """Insert a new cached summary, or update it if the hash already exists."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO file_summary_cache (file_hash, filepath, summary)
+            VALUES (?, ?, ?)
+            ON CONFLICT(file_hash) DO UPDATE SET
+                summary = excluded.summary,
+                filepath = excluded.filepath
+            """,
+            (file_hash, filepath, summary),
+        )
+        conn.commit()
