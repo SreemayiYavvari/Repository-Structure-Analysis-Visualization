@@ -1,0 +1,54 @@
+"""
+Graph Generator Service.
+
+Combines the scanner, dependency analyzer and metrics calculator to
+produce the final repository graph JSON (nodes + edges).
+"""
+from typing import Dict
+
+from app.services.scanner import scan_repository
+from app.services.dependency_analyzer import build_dependency_edges
+from app.services.metrics import calculate_metrics
+
+
+def build_repository_graph(repo_path: str) -> Dict:
+    """
+    Scan `repo_path` and return a dict with `nodes` and `edges` describing
+    the structure of the repository, matching the required graph schema:
+
+        {
+          "nodes": [
+            {
+              "id": "main.py", "label": "main.py", "filepath": "...",
+              "loc": 120, "imports": 5, "functions": 10,
+              "classes": 2, "complexity": 18
+            }
+          ],
+          "edges": [
+            {"source": "main.py", "target": "utils.py"}
+          ]
+        }
+
+    Note: node `id` is the filename. If a repository contains two files
+    with the same name in different folders, they will share a node id;
+    this is an intentional simplification matching the required schema.
+    """
+    files = scan_repository(repo_path)
+
+    nodes = []
+    for f in files:
+        metrics = calculate_metrics(f["path"], f["extension"])
+        nodes.append({
+            "id": f["name"],
+            "label": f["name"],
+            "filepath": f["path"],
+            "loc": metrics["loc"],
+            "imports": metrics["imports"],
+            "functions": metrics["functions"],
+            "classes": metrics["classes"],
+            "complexity": metrics["complexity"],
+        })
+
+    edges = build_dependency_edges(files)
+
+    return {"nodes": nodes, "edges": edges}
