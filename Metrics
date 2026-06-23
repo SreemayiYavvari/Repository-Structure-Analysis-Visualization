@@ -1,0 +1,114 @@
+"""
+Metrics Calculator Service.
+
+Computes Lines of Code, import count, function count, class count and
+a simple complexity score for every scanned file.
+
+Python files are analyzed precisely via the `ast` module. JS/TS and
+C/C++ files are analyzed with best-effort regex heuristics, since
+adding a full parser for every language is outside the scope of a
+dependency-free backend.
+"""
+import ast
+import re
+from pathlib import Path
+from typing import Dict
+
+JS_FUNCTION_PATTERN = re.compile(
+    r"\bfunction\s+\w*\s*\(|\b\w+\s*=\s*\([^)]*\)\s*=>|\b\w+\s*\([^)]*\)\s*\{"
+)
+JS_CLASS_PATTERN = re.compile(r"\bclass\s+\w+")
+JS_IMPORT_PATTERN = re.compile(r"^\s*(?:import\s+.*|.*require\()", re.MULTILINE)
+
+C_FUNCTION_PATTERN = re.compile(
+    r"^[A-Za-z_][\w\s\*]*\s+\w+\s*\([^;{}]*\)\s*\{", re.MULTILINE
+)
+C_INCLUDE_PATTERN = re.compile(r"^\s*#include", re.MULTILINE)
+
+CONTROL_KEYWORDS = re.compile(r"\b(if|for|while|try|catch|switch)\b")
+
+
+def _read_text(filepath: str) -> str:
+    try:
+        return Path(filepath).read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
+def _python_metrics(filepath: str, content: str) -> Dict:
+    functions = classes = imports = control_blocks = 0
+
+    try:
+        tree = ast.parse(content, filename=filepath)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                functions += 1
+            elif isinstance(node, ast.ClassDef):
+                classes += 1
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                imports += 1
+            elif isinstance(node, (ast.If, ast.For, ast.While, ast.Try)):
+                control_blocks += 1
+    except (SyntaxError, ValueError):
+        # File couldn't be parsed (e.g. invalid syntax) -> metrics default to 0
+        pass
+
+    complexity = control_blocks + functions
+    return {
+        "functions": functions,
+        "classes": classes,
+        "imports": imports,
+        "complexity": complexity,
+    }
+
+
+def _js_metrics(content: str) -> Dict:
+    functions = len(JS_FUNCTION_PATTERN.findall(content))
+    classes = len(JS_CLASS_PATTERN.findall(content))
+    imports = len(JS_IMPORT_PATTERN.findall(content))
+    control_blocks = len(CONTROL_KEYWORDS.findall(content))
+    return {
+        "functions": functions,
+        "classes": classes,
+        "imports": imports,
+        "complexity": control_blocks + functions,
+    }
+
+
+def _c_metrics(content: str) -> Dict:
+    functions = len(C_FUNCTION_PATTERN.findall(content))
+    classes = 0  # Plain C has no classes; kept minimal/conservative for C++ too.
+    imports = len(C_INCLUDE_PATTERN.findall(content))
+    control_blocks = len(CONTROL_KEYWORDS.findall(content))
+    return {
+        "functions": functions,
+        "classes": classes,
+        "imports": imports,
+        "complexity": control_blocks + functions,
+    }
+
+
+def calculate_metrics(filepath: str, extension: str) -> Dict:
+    """
+    Calculate LOC, imports, functions, classes and a complexity score
+    for a single file. Returns a dict matching the graph node schema.
+    """
+    content = _read_text(filepath)
+    loc = len([line for line in content.splitlines() if line.strip()])
+
+    if extension == ".py":
+        lang_metrics = _python_metrics(filepath, content)
+    elif extension in (".js", ".jsx", ".ts", ".tsx"):
+        lang_metrics = _js_metrics(content)
+    elif extension in (".c", ".cpp", ".h"):
+        lang_metrics = _c_metrics(content)
+    else:
+        lang_metrics = {"functions": 0, "classes": 0, "imports": 0, "complexity": 0}
+
+    return {
+        "loc": loc,
+        "imports": lang_metrics["imports"],
+        "functions": lang_metrics["functions"],
+        "classes": lang_metrics["classes"],
+        "complexity": lang_metrics["complexity"],
+    }
