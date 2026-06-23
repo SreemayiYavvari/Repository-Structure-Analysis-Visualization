@@ -1,0 +1,44 @@
+"""
+Application configuration loaded from environment variables.
+
+All values can be overridden via a `.env` file placed at the backend
+project root (see `.env.example`) or via real environment variables.
+"""
+import os
+from dotenv import load_dotenv
+
+# Load .env file if present. Safe no-op if the file doesn't exist.
+load_dotenv()
+
+
+class Settings:
+    """Centralized application settings."""
+
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
+    DB_PATH: str = os.getenv("DB_PATH", "./app/database/cache.db")
+
+    # Max characters of a file read for hashing / explanation, to avoid
+    # excessive memory use or oversized prompts for huge files.
+    MAX_FILE_SIZE_BYTES: int = int(os.getenv("MAX_FILE_SIZE_BYTES", "2000000"))
+
+    SUPPORTED_EXTENSIONS = {
+        ".py", ".js", ".jsx", ".ts", ".tsx", ".cpp", ".c", ".h",
+    }
+
+    HOST: str = os.getenv("HOST", "0.0.0.0")
+    PORT: int = int(os.getenv("PORT", "8000"))
+
+    def validate(self) -> list:
+        """Return a list of human-readable configuration warnings."""
+        problems = []
+        if not self.GEMINI_API_KEY:
+            problems.append(
+                "GEMINI_API_KEY is not set. The /explain endpoint will "
+                "return an error until it is configured in your .env file."
+            )
+        return problems
+
+
+settings = Settings()
