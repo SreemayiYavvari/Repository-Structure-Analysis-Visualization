@@ -1,0 +1,76 @@
+"""
+Gemini Integration Service.
+
+Wraps calls to the Google Gemini API to produce a short, developer
+friendly explanation of a source file's contents.
+"""
+from pathlib import Path
+
+import google.generativeai as genai
+
+from app.config import settings
+
+_PROMPT_TEMPLATE = (
+    "Explain this file in 3 simple sentences for a developer who has "
+    "never seen this code before.\n\n"
+    "Filename: {filename}\n\n"
+    "Code:\n```\n{code}\n```"
+)
+
+_configured = False
+
+
+class GeminiConfigError(Exception):
+    """Raised when the Gemini API key is missing or invalid."""
+
+
+class GeminiRequestError(Exception):
+    """Raised when the Gemini API call itself fails, or the file can't be read."""
+
+
+def _ensure_configured() -> None:
+    """Lazily configure the Gemini SDK with the API key on first use."""
+    global _configured
+    if not settings.GEMINI_API_KEY:
+        raise GeminiConfigError(
+            "GEMINI_API_KEY is not configured. Set it in your .env file."
+        )
+    if not _configured:
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        _configured = True
+
+
+def explain_file(filepath: str) -> str:
+    """
+    Read the file content and ask Gemini to produce a 3-sentence summary.
+
+    Raises:
+        GeminiConfigError: if the API key is missing.
+        GeminiRequestError: if the file can't be read or the API call fails.
+    """
+    _ensure_configured()
+
+    path = Path(filepath)
+    try:
+        code = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError as exc:
+        raise GeminiRequestError(f"Could not read file: {exc}") from exc
+
+    # Truncate very large files to keep the prompt within reasonable bounds.
+    max_chars = 20_000
+    if len(code) > max_chars:
+        code = code[:max_chars] + "\n... (truncated)"
+
+    prompt = _PROMPT_TEMPLATE.format(filename=path.name, code=code)
+
+    try:
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        response = model.generate_content(prompt)
+        summary = (getattr(response, "text", "") or "").strip()
+    except Exception as exc:  # The Gemini SDK can raise several exception types.
+        raise GeminiRequestError(f"Gemini API call failed: {exc}") from exc
+
+    if not summary:
+        raise GeminiRequestError("Gemini returned an empty response.")
+
+    return summary
