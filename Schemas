@@ -1,0 +1,43 @@
+"""
+Pydantic request/response models used across the API.
+"""
+from typing import List
+from pydantic import BaseModel, Field
+
+
+class GraphNode(BaseModel):
+    id: str
+    label: str
+    filepath: str
+    loc: int
+    imports: int
+    functions: int
+    classes: int
+    complexity: int
+
+
+class GraphEdge(BaseModel):
+    source: str
+    target: str
+
+
+class GraphResponse(BaseModel):
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]
+
+
+class ExplainRequest(BaseModel):
+    filepath: str = Field(
+        ..., description="Absolute or relative path to the file to explain"
+    )
+
+
+class ExplainResponse(BaseModel):
+    summary: str
+    cached: bool = Field(
+        ..., description="True if the summary was served from the SQLite cache"
+    )
+
+
+class HealthResponse(BaseModel):
+    status: str
