@@ -1,0 +1,32 @@
+"""
+Repository analysis routes.
+"""
+from fastapi import APIRouter, HTTPException, Query
+
+from app.models.schemas import GraphResponse
+from app.services.graph_builder import build_repository_graph
+from app.services.scanner import RepositoryNotFoundError, EmptyRepositoryError
+
+router = APIRouter(prefix="/repository", tags=["repository"])
+
+
+@router.get("/graph", response_model=GraphResponse)
+def get_repository_graph(
+    path: str = Query(..., description="Absolute path to the repository to analyze")
+) -> GraphResponse:
+    """
+    Scan the repository at `path`, detect dependencies, calculate metrics
+    for every supported file, and return the resulting graph (nodes + edges).
+    """
+    try:
+        graph = build_repository_graph(path)
+    except RepositoryNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except EmptyRepositoryError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # Catch-all so internal errors never leak raw tracebacks
+        raise HTTPException(
+            status_code=500, detail=f"Failed to analyze repository: {exc}"
+        ) from exc
+
+    return graph
