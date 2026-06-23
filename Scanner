@@ -1,0 +1,73 @@
+"""
+Repository Scanner Service.
+
+Recursively traverses a repository directory and collects metadata
+(name, path, extension) about every supported source file.
+"""
+from pathlib import Path
+from typing import List, Dict
+
+from app.config import settings
+
+# Directories that are never useful to scan and would otherwise pollute
+# the dependency graph or slow down the scan significantly.
+IGNORED_DIRS = {
+    ".git", "node_modules", "__pycache__", ".venv", "venv", "env",
+    "dist", "build", ".idea", ".vscode", ".pytest_cache", ".mypy_cache",
+}
+
+
+class RepositoryNotFoundError(Exception):
+    """Raised when the given repository path does not exist or isn't a directory."""
+
+
+class EmptyRepositoryError(Exception):
+    """Raised when no supported source files are found in the repository."""
+
+
+def scan_repository(repo_path: str) -> List[Dict]:
+    """
+    Walk `repo_path` recursively and return a list of dicts describing
+    every supported source file found.
+
+    Each dict contains: name, path (absolute), relative_path, extension.
+
+    Raises:
+        RepositoryNotFoundError: if the path doesn't exist or isn't a directory.
+        EmptyRepositoryError: if no supported files are found.
+    """
+    root = Path(repo_path).expanduser().resolve()
+
+    if not root.exists():
+        raise RepositoryNotFoundError(f"Repository path does not exist: {repo_path}")
+    if not root.is_dir():
+        raise RepositoryNotFoundError(f"Repository path is not a directory: {repo_path}")
+
+    files = []
+    for path in root.rglob("*"):
+        if path.is_dir():
+            continue
+        if any(part in IGNORED_DIRS for part in path.parts):
+            continue
+        if path.suffix.lower() not in settings.SUPPORTED_EXTENSIONS:
+            continue
+
+        try:
+            relative_path = str(path.relative_to(root))
+        except ValueError:
+            relative_path = path.name
+
+        files.append({
+            "name": path.name,
+            "path": str(path),
+            "relative_path": relative_path,
+            "extension": path.suffix.lower(),
+        })
+
+    if not files:
+        raise EmptyRepositoryError(
+            f"No supported source files (.py, .js, .jsx, .ts, .tsx, .cpp, "
+            f".c, .h) were found in repository: {repo_path}"
+        )
+
+    return files
