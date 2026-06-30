@@ -132,22 +132,20 @@ path** to any local repository into the bar, and hit **Analyze**.
 Configure everything through `backend/.env` (see `.env.example`):
 
 ```ini
-# Choose one: anthropic | openai | gemini | null
-AI_PROVIDER=anthropic
+# Choose one: gemini | openai | anthropic | null
+AI_PROVIDER=gemini
 
-ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=your_gemini_api_key_here
 # OPENAI_API_KEY=sk-...
-# GEMINI_API_KEY=...
+# ANTHROPIC_API_KEY=sk-ant-...
 
 # Optional model overrides (sensible defaults are built in)
-# ANTHROPIC_MODEL=claude-haiku-4-5
+# GEMINI_MODEL=gemini-2.5-flash
 # OPENAI_MODEL=gpt-4o-mini
-# GEMINI_MODEL=gemini-1.5-flash
+# ANTHROPIC_MODEL=claude-haiku-4-5
 ```
 
-The default Anthropic model is **`claude-haiku-4-5`** — fast and inexpensive,
-which suits short per‑file summaries. Providers are implemented over plain HTTP
-(`httpx`), so no vendor SDK is required.
+The default Gemini model is **`gemini-2.5-flash`** — fast and cost-effective, making it suitable for generating short per-file summaries. Providers are implemented over plain HTTP (`httpx`), so no vendor SDK is required.
 
 ### The summary cache
 
