@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     anthropic_model: str = "claude-haiku-4-5"
     openai_model: str = "gpt-4o-mini"
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-2.5-flash"
 
     # Analysis
     repo_root: str | None = None
