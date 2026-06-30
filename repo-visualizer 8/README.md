@@ -133,7 +133,7 @@ Configure everything through `backend/.env` (see `.env.example`):
 
 ```ini
 # Choose one: anthropic | openai | gemini | null
-AI_PROVIDER=anthropic
+AI_PROVIDER=gemini
 
 ANTHROPIC_API_KEY=sk-ant-...
 # OPENAI_API_KEY=sk-...
@@ -142,12 +142,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Optional model overrides (sensible defaults are built in)
 # ANTHROPIC_MODEL=claude-haiku-4-5
 # OPENAI_MODEL=gpt-4o-mini
-# GEMINI_MODEL=gemini-1.5-flash
+# GEMINI_MODEL=gemini-2.5-flash
 ```
 
-The default Anthropic model is **`claude-haiku-4-5`** — fast and inexpensive,
-which suits short per‑file summaries. Providers are implemented over plain HTTP
-(`httpx`), so no vendor SDK is required.
 
 ### The summary cache
 
