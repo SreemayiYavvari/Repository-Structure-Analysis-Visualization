@@ -6,6 +6,9 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# backend/app/config.py -> parent.parent = backend/
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
 
 class Settings(BaseSettings):
     """Runtime settings.
@@ -32,7 +35,7 @@ class Settings(BaseSettings):
     # Analysis
     repo_root: str | None = None
     max_file_bytes: int = 1_000_000
-    cache_db: str = "./.cache/summaries.db"
+    cache_db: str = str(_BACKEND_ROOT / ".cache" / "summaries.db")
 
     # CORS (comma separated)
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
