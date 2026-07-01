@@ -143,7 +143,15 @@ class GeminiProvider(Provider):
         self._api_key = api_key
 
     def summarize(self, path: str, language: str, code: str) -> str:
-        url = f"{self._BASE}/{self.model}:generateContent?key={self._api_key}"
+        # 1. Remove the '?key=' query parameter from the URL
+        url = f"{self._BASE}/{self.model}:generateContent"
+        
+        # 2. Define the headers using your snippet
+        headers = {
+            "x-goog-api-key": self._api_key,
+            "Content-Type": "application/json",
+        }
+        
         body = {
             "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
             "contents": [
@@ -152,7 +160,8 @@ class GeminiProvider(Provider):
             "generationConfig": {"maxOutputTokens": 300},
         }
         try:
-            resp = httpx.post(url, json=body, timeout=60.0)
+            # 3. Pass the headers dictionary into the httpx.post call
+            resp = httpx.post(url, headers=headers, json=body, timeout=60.0)
             resp.raise_for_status()
             data = resp.json()
         except httpx.HTTPError as exc:
